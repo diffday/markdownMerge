@@ -135,6 +135,7 @@ function formatGroupTitleUserContent($nameArray) {
                 $lastLevel = 0;
                 $titles = $match[0];
                 $rawMinLevel = getMinLevel($titles);
+                //一级标题预留给group，限定文档标题从2级开始
                 $minLevel = $rawMinLevel < 2 ? 2 : $rawMinLevel;
                 for ($i=0;$i<sizeof($titles);++$i) {
                     $rawTitle = $titles[$i][0];
@@ -149,17 +150,30 @@ function formatGroupTitleUserContent($nameArray) {
                     $level = substr_count($match[0][0],"#");
 
                     if ($level == $minLevel) {
-                        $diff = $lastLevel - $level;
-                        for($m = 0;$m<=$diff;++$m) {
+                        $clue = array();
+                        $clue[]= $rootIndex++;
+                    }
+                    //根据扫描过的文档标题层级变动，给文档打上除标题文字之外的位置层级信息（支持不同的人写的文档标题不完全顺序一致，只要层级和内容一致即可合并）
+                    if (($level < $lastLevel)&&(count($clue)!=1)) {
+                        $clue_reverse = array_reverse($clue);
+                        $diff = 0;
+                        //有些人会放飞自我，文档层级跳跃（如3级直接跟5级）。为了应对跳跃的灵魂（完全以跳跃灵魂的内容为准，执行$lastLevel-$level次pop可能会导致pop过深）
+                        foreach($clue_reverse as $clue_r) {
+                            if ($clue_r > $level) {
+                                $diff++;
+                            }
+                        }
+                        for($m=0;$m<=$diff;++$m) {
                             array_pop($clue);
                         }
                     }
+                    //扫描过的目录层级，被记录在clue面包屑中
                     if ($lastLevel != $level || (count($clue) == 1)) {
                         $clue[] = $level;
                     }
 
                     $lastLevel = $level;
-                    $titleCode = implode("_",$clue); //文档树目录层级路径遍历
+                    $titleCode = implode("_",$clue); //文档树目录层级路径标示
 
                     $startPos = $titles[$i][1];
                     if ($i != sizeof($titles) -1) {
