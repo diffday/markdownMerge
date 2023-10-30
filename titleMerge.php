@@ -84,16 +84,18 @@ function getParentTitle($b,$start) {
     return "";
 }
 
+//b往a树合并
 function mergeTreeArray(&$a,$b,$userName) {
     for ($j =0;$j<count($b);++$j) {
         $bPT = getParentTitleClue($b,$j);
         $bclue = implode('<--',array_slice(explode("<--",$bPT),1));
         $bTitle = $b[$j]['title'];
-
+        //debug("MERGE:源标题[{$bTitle}]---源父标题线索[{$bPT}]");
         $index = 0;
         if (getMergeNodeIndex($a,$b,$bTitle,$bPT,$index)) {
             $a[$index]['data'][$userName] = $b[$j]['data'][$userName];
         }else {
+            //debug("Append:源父标题线索[{$bclue}]");
             getAppendNodeIndex($a,$b,$bclue,$index);
             array_slice($a,$index,0,array(array('title' => $bTitle,'data'=>array($userName => $b[$j]['data'][$userName]))));
         }
@@ -105,6 +107,7 @@ function mergeTreeArray(&$a,$b,$userName) {
 function getMinLevel($titlePregRaw) {
     $minLevel = 100;
     for ($i =0;$i<sizeof($titlePregRaw);++$i) {
+        // # 符号的个数
         $rawTitle = $titlePregRaw[$i][0];
 
         $patternLevel = "/^#+ /";
@@ -114,6 +117,14 @@ function getMinLevel($titlePregRaw) {
     }
 
     return $minLevel;
+}
+
+//判断是否在代码段内
+function skipCodeSegmentTitle($codeSegPos,$titlePos) {
+    foreach($codeSegPos as $seg) {
+        if ($titlePos >= $seg['start'] && $titlePos <= $seg['end']) return true;
+    }
+    return false;
 }
 
 //为个人周报文档提取标题结构
@@ -126,8 +137,24 @@ function formatGroupTitleUserContent($nameArray) {
         $titles = array();
         if (array_key_exists($userName. ".md",$fileContent)) {
             $pattern = "/#+ (.+)/";
+            $codeSegPattern = "/```[\s\S]*?```[\s]+/";
             $match = array();
+            $codeMatch = array();
+            $skipCodeSegment = array();
             info('=======' . $userName . '======');
+            preg_match_all($codeSegPattern,$fileContent[$userName . ".md"],$codeMatch,PREG_OFFSET_CAPTURE);
+            if (!empty($codeMatch)) {
+                foreach ($codeMatch[0] as $codeSeg) {
+                    $posSeg = array (
+                        'start' => $codeSeg[1],
+                        'end' => $codeSeg[1] + strlen($codeSeg[0]) -1
+                    );
+                    $skipCodeSegment[] = $posSeg;
+                }
+                debug('提取代码段位置');
+                debug($skipCodeSegment);
+            }
+            //取得markdown标题和标题字符位置偏移
             preg_match_all($pattern,$fileContent[$userName . ".md"],$match,PREG_OFFSET_CAPTURE);
             $rootIndex = 0;
             $clue = array();//目录层级线索
@@ -137,6 +164,19 @@ function formatGroupTitleUserContent($nameArray) {
                 $rawMinLevel = getMinLevel($titles);
                 //一级标题预留给group，限定文档标题从2级开始
                 $minLevel = $rawMinLevel < 2 ? 2 : $rawMinLevel;
+
+                //跳过代码段中的 # 注释符号的提取，避免认定为标题
+                $titleSkepCodeSeg = array();
+                foreach($titles as $title) {
+                    if (!skipCodeSegmentTitle($skipCodeSegment,$title[1])) {
+                        $titleSkepCodeSeg[] = $title;
+                    }
+                    else {
+                        debug('跳过代码段里用# 的内容区，避免视为标题');
+                    }
+                }
+                $titles = $titleSkepCodeSeg; //用不含代码段的纯净标题来推进下述流程
+
                 for ($i=0;$i<sizeof($titles);++$i) {
                     $rawTitle = $titles[$i][0];
                     $titleLen = strlen($rawTitle);
