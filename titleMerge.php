@@ -128,12 +128,12 @@ function skipCodeSegmentTitle($codeSegPos,$titlePos) {
 }
 
 //为个人周报文档提取标题结构
-function formatGroupTitleUserContent($nameArray) {
-    global $fileContent,$group,$weekReportDir;
+function formatGroupTitleUserContent($fileContent, $nameArray, $filterTitles=array()) {
+    //global $group,$weekReportDir;
     //info($fileContent);
     $userTitleContent = array();
     foreach($nameArray as $userName) {
-        $tieleContent = array();
+        $titleContent = array();
         $titles = array();
         if (array_key_exists($userName. ".md",$fileContent)) {
             $pattern = "/#+ (.+)/";
@@ -226,10 +226,20 @@ function formatGroupTitleUserContent($nameArray) {
                     $titleWithClue = $title.'=='.$titleCode;
                     $data = array(
                         'title'=>$titleWithClue,
-                        'content'=>empty($cont) ? "" : $cont
+                        'content'=>empty($cont) ? "" : $cont,
+						'rawTitle'=>$title
                     );
-                    $titleContent[] = $data;
+					
+					if (!empty($filterTitles)) {
+						if (in_array($title, $filterTitles)) { //只提取保留部分的榨干南车
+							$titleContent[] = $data;
+						}
+					}
+					else {
+						$titleContent[] = $data;
+					}
                 }
+				
                 if ($rawMinLevel >2) {
                     foreach($tieleContent as &$titleInfo) {
                         $title = substr($titleInfo['title'],1,strrpos($titleInfo['title'],"==") +1);

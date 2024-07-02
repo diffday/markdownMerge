@@ -60,10 +60,20 @@ function info($content)
 function getDateInfo($dateStr=NULL)
 {
 	$time = $dateStr ? strtotime($dateStr) : time();
-	$day = date("d", $time) - (8- date("w",strtotime(date("Y-m-1 00:00:00",$time))));
+	return getDateInfoFromTime($time);
+}
+
+function getDateInfoFromTime($timeStamp) {
+	$day = date("d", $timeStamp) - (8- date("w",strtotime(date("Y-m-1 00:00:00",$timeStamp))));
 	return array (
-		'Y' => date("Y",$time),
-		'm' => ltrim(date('m',$time),'0'),
+		'Y' => date("Y",$timeStamp),
+		'm' => ltrim(date('m',$timeStamp),'0'),
 		'week' => $day<=0 ? 1 :ceil($day/7)+1
 	);
+}
+
+function getDiffDateInfo($dateStr, $dayDiff) {
+	$time = strtotime($dateStr);
+	$resultTime = $time + $dayDiff * 86400;
+	return getDateInfoFromTime($resultTime);
 }
